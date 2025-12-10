@@ -1,6 +1,7 @@
 # 2021-08-16 RoadrunnerWMC
 
 import enum
+from io import BytesIO
 import struct
 from typing import BinaryIO
 
@@ -21,7 +22,7 @@ class RELSection(CodeFileSection):
     Represents a single section in a .rel file
     """
     @classmethod
-    def from_file(cls, file: BinaryIO, offset: int) -> 'RELSection':
+    def from_file(cls, file: BinaryIO | BytesIO, offset: int) -> 'RELSection':
         """
         Load a section from the given offset in the given file
         """
@@ -81,7 +82,7 @@ class RELRelocation:
     addend: int = 0
 
     @classmethod
-    def from_file(cls, file: BinaryIO, offs: int) -> 'RELRelocation':
+    def from_file(cls, file: BinaryIO | BytesIO, offs: int) -> 'RELRelocation':
         """
         Load a relocation from the given offset in the given file
         """
@@ -105,7 +106,7 @@ class RELImport:
         self.relocations = []
 
     @classmethod
-    def from_file(cls, file: BinaryIO, offs: int) -> 'RELImport':
+    def from_file(cls, file: BinaryIO | BytesIO, offs: int) -> 'RELImport':
         """
         Load an import from the given offset in the given file
         """
@@ -149,17 +150,13 @@ class REL(CodeFile):
     # version >= 3
     fix_size: int = None
 
-    def __init__(self):
+    def __init__(self, data: bytes = None):
         self.sections = []
         self.imports = []
+        if data is not None:
+            self.read_file(BytesIO(data))
 
-    @classmethod
-    def from_file(cls, file: BinaryIO) -> 'REL':
-        """
-        Load a REL file from a file-like object
-        """
-        self = cls()
-
+    def read_file(self, file: BinaryIO | BytesIO):
         file.seek(0)
 
         # Read main header
@@ -195,6 +192,15 @@ class REL(CodeFile):
             self.imports.append(RELImport.from_file(file, imp_offset + i * 8))
 
         return self
+
+    @classmethod
+    def from_file(cls, file: BinaryIO) -> 'REL':
+        """
+        Load a REL file from a file-like object
+        """
+        rel = cls()
+        rel.read_file(file)
+        return rel
 
 
 extension = '.rel'

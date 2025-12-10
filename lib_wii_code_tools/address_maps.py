@@ -344,7 +344,7 @@ def load_address_map(f: TextIO) -> AddressMap:
     empty_line_regex = re.compile(r'^\s*$')
     section_regex = re.compile(r'^\s*\[([a-zA-Z0-9_.]+)\]$')
     extend_regex = re.compile(r'^\s*extend ([a-zA-Z0-9_.]+)\s*(#.*)?$')
-    mapping_regex = re.compile(r'^\s*([a-fA-F0-9]{8})-((?:[a-fA-F0-9]{8})|\*)\s*:\s*([-+])0x([a-fA-F0-9]+)\s*(#.*)?$')
+    mapping_regex = re.compile(r'^\s*([a-fA-F0-9]{8,16})-((?:[a-fA-F0-9]{8,16})|\*)\s*:\s*([-+])0x([a-fA-F0-9]+)\s*(#.*)?$')
     current_version_name = None
     current_version = None
 

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import enum
 import io
 import json
@@ -734,6 +735,115 @@ class DolphinSymbolMap(SymbolMap):
             f.write('\n')
 
 
+_DTK_SYM_RE = re.compile("([_\\.A-Za-z0-9]+):0x([0-9A-F]+); // (.*)")
+
+class DtkSymbolsTxtMap:
+    """
+    decomp-toolkit symbols.txt
+    """
+    LOADABLE: ClassVar[bool] = True
+    EXTENSION: ClassVar[Optional[str]] = '.txt'
+
+    @dataclass
+    class DtkSymbol:
+        name: str
+        section: str
+        addr: str
+        size: int
+        attrs: dict
+
+    symbols: List[DtkSymbol]
+
+    def __init__(self):
+        self.symbols = []
+
+    @classmethod
+    def load(cls, f: TextIO) -> 'DtkSymbolsTxtMap':
+        """
+        Read from a file-like object
+        """
+        self = cls()
+        for line in f:
+            name, rest = line.split(" = ")
+            name = name.strip()
+            rest = rest.strip()
+            match = _DTK_SYM_RE.match(rest)
+            section = match.group(1)
+            addr_ = match.group(2)
+            attrs_ = match.group(3)
+
+            attrs = {}
+            for pair in attrs_.split(' '):
+                parts = pair.split(':')
+                if len(parts) == 1:
+                    attrs[parts[0]] = None
+                else:
+                    attrs[parts[0]] = parts[1]
+
+            size_ = attrs.get('size', None)
+            size = None
+            if size_:
+                size = int(size_[2:], 16)
+
+            self.symbols.append(cls.DtkSymbol(
+                name, section, int(addr_, 16), size, attrs
+            ))
+
+        return self
+
+    @classmethod
+    def from_dict_and_sections_info(cls, map: BasicSymbolMap, sections_info: List[dict]) -> 'SymbolMap':
+        """
+        Load from objects in memory, rather than from a file object.
+        map: {address: 'name'}
+        sections_info: list of dicts giving info about each section.
+        The exact keys that are required vary depending on subclass.
+        """
+        # TODO what is this for???
+        raise NotImplementedError
+
+    def to_symbol_dict(self) -> BasicSymbolMap:
+        """
+        Convert to a simple {address: 'name'} dict
+        """
+        ret = {}
+        for sym in self.symbols:
+            ret[sym.addr] = sym.name
+
+        return ret
+
+    def write(self, f: TextIO) -> None:
+        """
+        Write to a file-like object
+        """
+        for sym in self.symbols:
+            f.write(f"{sym.name} = {sym.section}:{hex(sym.addr)}; //")
+            for key, value in sym.attrs.items():
+                if key == "size":
+                    value = f"{hex(sym.size)}"
+                if value is not None:
+                    f.write(f" {key}:{value}")
+                else:
+                    f.write(f" {key}")
+            f.write("\n")
+
+    @classmethod
+    def autodetect(cls, f: TextIO) -> bool:
+        """
+        Try to infer if the file is in this symbol map format or not
+        """
+        try:
+            cls.load(f)
+        except Exception:
+            return False
+        return True
+
+    def __str__(self) -> str:
+        sio = io.StringIO()
+        self.write(sio)
+        sio.seek(0)
+        return sio.read()
+
 
 FORMAT_CLASSES = {
     'json': JSONSymbolMap,
@@ -742,6 +852,7 @@ FORMAT_CLASSES = {
     'ghidra': GhidraSymbolsScript,
     'linker': LinkerScriptMap,
     'dolphin': DolphinSymbolMap,
+    'txt': DtkSymbolsTxtMap,
 }
 
 

@@ -11,6 +11,7 @@ from lib_wii_code_tools.code_files import rel as code_files_rel
 from lib_wii_code_tools import common
 from lib_wii_code_tools import address_maps as lib_address_maps
 from lib_wii_code_tools import nsmbw as lib_nsmbw
+from rel_globalization import RelAddrGlobalizationCmdLine, RelAddrGlobalizationPacked
 
 # Zero fields and reserved fields should both be included in the masks:
 # "If a reserved field does not have all bits cleared, or if a field
@@ -691,18 +692,23 @@ def main(args: Optional[List[str]] = None) -> None:
                 rel = code_files_rel.REL.from_file(f)
             rels.append((rel_name, rel))
 
-            addrs = [int(p, 16) for p in rel_addrs_str.split(',')]
+            sections = [s for s in rel.sections]
 
-            filtered_sections = [s for s in rel.sections if not s.is_null()]
-
-            if len(addrs) != len(filtered_sections):
-                raise ValueError(
-                    f'Expected {len(filtered_sections)} section addresses for REL,'
-                    f' but got {len(addrs)} on the command line')
+            algorithm = None
+            if rel_addrs_str == "i16s16o32":
+                algorithm = RelAddrGlobalizationPacked()
+            else:
+                addrs = [int(p, 16) for p in rel_addrs_str.split(',')]
+                sections = [s for s in rel.sections if not s.is_null()]
+                if len(addrs) != len(sections):
+                    raise ValueError(
+                        f'Expected {len(sections)} section addresses for REL,'
+                        f' but got {len(addrs)} on the command line')
+                algorithm = RelAddrGlobalizationCmdLine(addrs)
 
             # Apply static section addresses
-            for section, addr in zip(filtered_sections, addrs):
-                section.address = addr
+            for i, section in enumerate(sections):
+                section.address = algorithm.globalize(rel.id, i, 0)
 
         return rels
 

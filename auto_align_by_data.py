@@ -14,6 +14,8 @@ from typing import List, Optional
 
 from lib_wii_code_tools.code_files import CodeFile
 from lib_wii_code_tools.code_files.all import load_by_extension
+from lib_wii_code_tools.code_files.rel import REL
+from rel_globalization import RelAddrGlobalizationPacked
 
 
 def check_match_at(data_a: bytes, data_b: bytes, offset: int, size: int) -> int:
@@ -173,7 +175,7 @@ def find_division_points_in_range(
                     end_offset = new_end_offset
 
     # Crawl left a little more
-    while (end_offset < len(data_a)
+    while (end_offset > 0 and end_offset < len(data_a)
             and end_offset + expected_offset < len(data_b)
             and data_a[end_offset] == data_b[end_offset + expected_offset]):
         end_offset -= 1
@@ -263,6 +265,17 @@ def main(args: Optional[List[str]] = None) -> None:
     if cf_2 is None:
         print(f'Unknown file extension: {parsed_args.code_file_2.suffix}')
         return
+
+    # TODO(ss): Hack for REL comparison
+    if isinstance(cf_1, REL):
+        algorithm = RelAddrGlobalizationPacked()
+        for i, section in enumerate(cf_1.sections):
+            section.address = algorithm.globalize(cf_1.id, i, 0)
+
+    if isinstance(cf_2, REL):
+        algorithm = RelAddrGlobalizationPacked()
+        for i, section in enumerate(cf_2.sections):
+            section.address = algorithm.globalize(cf_2.id, i, 0)
 
     diff(cf_1, cf_2)
 
