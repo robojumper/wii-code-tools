@@ -3,6 +3,8 @@
 import argparse
 import functools
 from pathlib import Path
+import shlex
+import sys
 from typing import Callable, Iterator, List, Optional, Tuple
 
 from lib_wii_code_tools import code_files
@@ -634,6 +636,16 @@ def compare_data_across_versions(
 
 
 def main(args: Optional[List[str]] = None) -> None:
+    # some games have a lot of RELs, so support "response files" here
+    if not args:
+        args = sys.argv[1:]
+    for i in range(len(args) - 1, -1, -1):
+        arg = args[i]
+        if arg.startswith("@"):
+            with open(arg[1:], 'r', encoding='utf-8') as f:
+                new_args = shlex.split(f.read())
+                args[i:(i + 1)] = new_args
+
     parser = argparse.ArgumentParser(
         description="Check an address map's accuracy by comparing instructions or data across two versions.")
 
