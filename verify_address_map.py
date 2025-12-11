@@ -643,7 +643,7 @@ def main(args: Optional[List[str]] = None) -> None:
         arg = args[i]
         if arg.startswith("@"):
             with open(arg[1:], 'r', encoding='utf-8') as f:
-                new_args = shlex.split(f.read())
+                new_args = shlex.split(f.read(), comments=True)
                 args[i:(i + 1)] = new_args
 
     parser = argparse.ArgumentParser(
