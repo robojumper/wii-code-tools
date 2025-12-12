@@ -735,7 +735,7 @@ class DolphinSymbolMap(SymbolMap):
             f.write('\n')
 
 
-_DTK_SYM_RE = re.compile("([_\\.A-Za-z0-9]+):0x([0-9A-F]+); // (.*)")
+_DTK_SYM_RE = re.compile("([_\\.A-Za-z0-9]+):0x([0-9A-Fa-f]+); // (.*)")
 
 class DtkSymbolsTxtMap:
     """

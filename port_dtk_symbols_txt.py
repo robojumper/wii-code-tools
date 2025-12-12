@@ -1,8 +1,10 @@
 import argparse
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import List, Optional
 
-from lib_dtk_code_tools.splits_txt import parse_splits_file, serialize_splits_file
+from lib_dtk_code_tools.splits_txt import parse_splits_file
+from lib_dtk_code_tools.tweaks import read_symbols_tweak_file
 from lib_wii_code_tools import address_maps as lib_address_maps, common
 from lib_wii_code_tools.symbol_map_formats import DtkSymbolsTxtMap
 from rel_globalization import RelAddrGlobalizationAlgorithm, RelAddrGlobalizationIdentity, RelAddrGlobalizationPacked
@@ -27,8 +29,14 @@ def main(args: Optional[List[str]] = None) -> None:
         help='the output symbols file')
     parser.add_argument('splits_file_1', type=Path,
         help='the base splits file')
+    parser.add_argument('tweaks_file', type=Path,
+        help='the tweaks file')
 
     parsed_args = parser.parse_args(args)
+
+    with parsed_args.tweaks_file.open('r', encoding='utf-8') as f:
+        tweakers = read_symbols_tweak_file(f)
+        tweakers = tweakers[parsed_args.version_2]
 
     with parsed_args.address_map.open('r', encoding='utf-8') as f:
         mappers = lib_address_maps.load_address_map(f)
@@ -74,7 +82,7 @@ def main(args: Optional[List[str]] = None) -> None:
                     mapper_to,
                     mapped_end_minus_1,
                     error_handling=error_handling)
-                
+
                 if not new_end:
                     print("failed to map", mapped_end_minus_1)
 
@@ -84,6 +92,18 @@ def main(args: Optional[List[str]] = None) -> None:
             symbol.addr = unmapped_new_start
             if symbol.size:
                 symbol.size = unmapped_new_end + 1 - unmapped_new_start
+
+    if tweakers:
+        for addition in tweakers.additions:
+            if splits_file.module_block.module_id == addition.module:
+                buf = StringIO(addition.line)
+                partial_symbols_file = DtkSymbolsTxtMap.load(buf)
+                symbols_file.symbols.append(partial_symbols_file.symbols[0])
+        for deletion in tweakers.deletions:
+            if splits_file.module_block.module_id == deletion.module:
+                buf = StringIO(deletion.line)
+                partial_symbols_file = DtkSymbolsTxtMap.load(buf)
+                symbols_file.symbols.remove(partial_symbols_file.symbols[0])
 
     with parsed_args.symbols_file_2.open('w', encoding='utf-8') as f:
         symbols_file.write(f)
