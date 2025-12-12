@@ -367,26 +367,37 @@ def create_instruction_name_lookup_func() -> Callable[[int], str]:
     return get_inst_name
 
 
+def is_section_match(address: int, section: code_files.CodeFileSection, executable: bool = None) -> bool:
+    if executable is not None:
+        if section.is_executable != executable: return False
+    if section.address is None: return False
+    if section.address <= address < section.address + section.size:
+        return section
+
+
 def find_section_containing(address: int, sections: List[code_files.CodeFileSection], *,
-        executable: bool = None) -> code_files.CodeFileSection:
+        executable: bool = None, speculative_idx: int = None) -> code_files.CodeFileSection:
     """
     Find the section containing a particular address.
     If executable is True or False, only consider sections with
     matching executability.
     """
+
+    if speculative_idx is not None:
+        section = sections[speculative_idx]
+        if is_section_match(address, section, executable):
+            return section
+
     for section in sections:
-        if executable is not None:
-            if section.is_executable != executable: continue
-        if section.address is None: continue
-        if section.address <= address < section.address + section.size:
+        if is_section_match(address, section, executable):
             return section
 
 
 def iter_addresses_from_sections(sections: List[code_files.CodeFileSection], *,
         executable: bool = None, align_to: int = 1, ignore_ranges: List[range] = (),
-        ) -> Iterator[Tuple[int, code_files.CodeFileSection]]:
+        ) -> Iterator[Tuple[int, code_files.CodeFileSection, int]]:
     """
-    Iterate over addresses (and their respective sections, for
+    Iterate over addresses (and their respective sections and section index, for
     convenience) from a list of code file sections.
     If executable is True or False, only consider sections with
     matching executability.
@@ -394,7 +405,7 @@ def iter_addresses_from_sections(sections: List[code_files.CodeFileSection], *,
     """
     prev_address = -1
 
-    for section in sections:
+    for i, section in enumerate(sections):
         if executable is not None:
             if section.is_executable != executable: continue
         if section.address is None: continue
@@ -409,7 +420,7 @@ def iter_addresses_from_sections(sections: List[code_files.CodeFileSection], *,
                     continue
 
             if not any(address in r for r in ignore_ranges):
-                yield address, section
+                yield address, section, i
 
             prev_address = address
 
@@ -451,7 +462,7 @@ def compare_opcodes_across_versions(
     if limit is not None and num_warnings_printed >= limit:
         return
 
-    for address_1, section_1 in iter_addresses_from_sections(
+    for address_1, section_1, section_index_1 in iter_addresses_from_sections(
             all_sections_1, executable=True, align_to=4, ignore_ranges=ignore_ranges):
         offset_1 = address_1 - section_1.address
 
@@ -467,7 +478,7 @@ def compare_opcodes_across_versions(
             continue
         address_2 -= 1
 
-        section_2 = find_section_containing(address_2, all_sections_2, executable=True)
+        section_2 = find_section_containing(address_2, all_sections_2, executable=True, speculative_idx=section_index_1)
         if section_2 is None:
             print(f"{address_1:08x} -> {address_2:08x}: mapped address isn't in any section in code file 2")
 
@@ -541,7 +552,7 @@ def compare_data_across_versions(
         """
         nonlocal num_warnings_printed
 
-        for address_1, section_1 in iter_addresses_from_sections(
+        for address_1, section_1, section_index_1 in iter_addresses_from_sections(
                 all_sections_1, executable=False, ignore_ranges=ignore_ranges):
             offset_1 = address_1 - section_1.address
 
@@ -549,7 +560,7 @@ def compare_data_across_versions(
             if address_2 is None:
                 continue
 
-            section_2 = find_section_containing(address_2, all_sections_2, executable=False)
+            section_2 = find_section_containing(address_2, all_sections_2, executable=False, speculative_idx=section_index_1)
 
             if section_2 is None:
                 print(f"{address_1:08x} -> {address_2:08x}: mapped address isn't in any section in code file 2")
