@@ -15,6 +15,18 @@ class RelAddrGlobalizationAlgorithm:
         return NotImplementedError
 
 
+class RelAddrGlobalizationIdentity(RelAddrGlobalizationAlgorithm):
+    def __init__(self):
+        pass
+
+    def globalize(self, module_id: int, section_index: int, offset: int) -> int:
+        return offset
+
+    def deglobalize(self, flat_addr: int) -> Tuple[int, int, int]:
+        # okay maybe this design isn't great
+        return None, None, flat_addr
+
+
 class RelAddrGlobalizationCmdLine(RelAddrGlobalizationAlgorithm):
     """
     Globalize addresses using externally given section offsets, e.g. when RELs are
@@ -32,7 +44,7 @@ class RelAddrGlobalizationCmdLine(RelAddrGlobalizationAlgorithm):
             if flat_addr <= offset:
                 found_idx = idx
                 break
-        return 0, found_idx, flat_addr - self.section_offsets[found_idx]
+        return None, found_idx, flat_addr - self.section_offsets[found_idx]
 
 class RelAddrGlobalizationPacked(RelAddrGlobalizationAlgorithm):
     """
