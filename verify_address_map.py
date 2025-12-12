@@ -439,9 +439,13 @@ def compare_opcodes_across_versions(
     for rel_name, rel in rels_1:
         all_sections_1.extend(rel.sections)
 
+    all_sections_1 = [s for s in all_sections_1 if not s.is_null()]
+
     all_sections_2 = list(code_file_2.sections)
     for rel_name, rel in rels_2:
         all_sections_2.extend(rel.sections)
+
+    all_sections_2 = [s for s in all_sections_2 if not s.is_null()]
 
     num_warnings_printed = initial_num_warnings
     if limit is not None and num_warnings_printed >= limit:
@@ -519,9 +523,13 @@ def compare_data_across_versions(
     for rel_name, rel in rels_1:
         all_sections_1.extend(rel.sections)
 
+    all_sections_1 = [s for s in all_sections_1 if not s.is_null()]
+
     all_sections_2 = list(code_file_2.sections)
     for rel_name, rel in rels_2:
         all_sections_2.extend(rel.sections)
+
+    all_sections_2 = [s for s in all_sections_2 if not s.is_null()]
 
     num_warnings_printed = initial_num_warnings
     if limit is not None and num_warnings_printed >= limit:
